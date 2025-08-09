@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Snake Deluxe</title>
+<style>
+:root{
+  --bg-1:#052616; --bg-2:#0b4f2a; --panel:rgba(255,255,255,0.04);
+  --accent1:#1bd77a; --accent2:#72ffb0; --muted:#b7d9c6; --ui-radius:18px; --soft-radius:12px; --font:Inter,system-ui,Segoe UI,Roboto,Arial;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:var(--font);background:linear-gradient(180deg,var(--bg-1),var(--bg-2));color:#e9f8ee}
+.app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
+.shell{width:96vw;max-width:1400px;height:92vh;display:grid;grid-template-columns:1fr 380px;gap:18px}
+.game-panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:12px;position:relative;box-shadow:0 30px 80px rgba(0,0,0,0.6)}
+.header{display:flex;justify-content:space-between;align-items:center}
+.title{font-weight:900;font-size:40px;line-height:1;background:linear-gradient(90deg,#0f7b3f,#9cffb7);-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:8px}
+.hud{display:flex;gap:10px;align-items:center}
+.hud .pill{background:var(--panel);padding:8px 12px;border-radius:999px;font-weight:800;color:var(--muted);display:flex;gap:8px;align-items:center;box-shadow:0 6px 18px rgba(0,0,0,0.45)}
+.board-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:8px;gap:18px}
+.canvas-wrap{position:relative;display:flex;flex-direction:column;align-items:center;border-radius:18px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));box-shadow:0 18px 40px rgba(0,0,0,0.45);min-width:520px}
+.canvas-hud{position:absolute;top:-46px;left:8px;background:linear-gradient(180deg,rgba(8,8,8,0.85),rgba(4,4,4,0.6));padding:8px 12px;border-radius:12px;font-weight:800;color:#e9f8ee;font-size:13px;box-shadow:0 8px 20px rgba(0,0,0,0.6)}
+canvas.board{border-radius:12px;background:transparent;outline:8px solid rgba(255,255,255,0.02);display:block}
+.controls{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--panel);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.45)}
+.mode-row{display:flex;gap:8px}
+.mode-tile{flex:1;padding:14px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));cursor:pointer;border:1px solid transparent;display:flex;flex-direction:column;gap:6px;align-items:flex-start;transition:transform .18s,box-shadow .18s;box-shadow:0 6px 18px rgba(0,0,0,0.25)}
+.mode-tile:hover{transform:translateY(-6px);border-color:rgba(255,255,255,0.06)}
+.mode-tile.selected{border-color:rgba(126,240,161,0.18);box-shadow:0 12px 30px rgba(0,0,0,0.55)}
+.model-row{display:flex;gap:8px}
+.choice-btn{padding:10px 12px;border-radius:12px;cursor:pointer;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));display:flex;align-items:center;justify-content:center;font-weight:800;transition:transform .12s}
+.choice-btn.center-row{display:flex;justify-content:center}
+.choice-btn:hover{transform:translateY(-3px)}
+.choice-btn.selected{outline:3px solid rgba(126,240,161,0.12);box-shadow:0 8px 20px rgba(0,0,0,0.45)}
+.small{font-size:13px;color:var(--muted)}
+.footer-actions{display:flex;gap:8px;align-items:center}
+.button{border-radius:12px;padding:10px 14px;border:0;background:linear-gradient(180deg,#11a652,#0e7b45);color:#e9f8ee;font-weight:900;cursor:pointer}
+.button.alt{background:transparent;border:1px solid rgba(255,255,255,0.04)}
+.canvas-overlay{position:absolute;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center}
+.canvas-overlay .card{width:520px;text-align:center;padding:22px;border-radius:22px;background:linear-gradient(180deg,rgba(6,6,6,0.95),rgba(6,6,6,0.98));box-shadow:0 30px 80px rgba(0,0,0,0.85)}
+.small-pre{white-space:pre-wrap;text-align:center}
+@media (max-width:1080px){ .shell{grid-template-columns:1fr} .canvas-wrap{min-width:320px} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="shell">
+    <div class="game-panel">
+      <div class="header">
+        <div>
+          <div class="title">Snake Deluxe</div>
+        </div>
+        <div class="hud" id="globalHUD">
+          <div class="pill" id="pillLives">❤ <span id="uiLives">1</span></div>
+          <div class="pill" id="pillScore">🍎 <span id="uiScore">0</span></div>
+          <div class="pill small">Best: <span id="uiBest">0</span></div>
+          <div class="pill small">Phase: <span id="uiPhase">1</span></div>
+          <div id="sndToggle" class="pill" title="Toggle sounds" style="cursor:pointer">🔊</div>
+        </div>
+      </div>
+
+      <div class="board-wrap" id="boardWrap"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="footer-actions">
+          <button id="btnStart" class="button">Start</button>
+          <button id="btnPause" class="button alt">Pause</button>
+        </div>
+        <div class="small"></div>
+      </div>
+
+      <div class="canvas-overlay" id="canvasOverlay"><div class="card"><h2 id="overlayTitle">Game Over</h2><div id="multiResults" class="small-pre" style="margin:8px 0"></div><p class="small">Score: <span id="overScore">0</span></p><p class="small">Best: <span id="overBest">0</span></p><div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button id="retry" class="button">Retry</button><button id="closeOverlay" class="button alt">Close</button></div></div></div>
+    </div>
+
+    <div class="controls">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div class="small">Mode</div><div class="small">Difficulty</div></div>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+          <div class="mode-row" style="flex:1">
+            <div class="mode-tile selected" id="mode_solo" data-mode="solo"><strong>Solo</strong><div class="small">Classic single player</div></div>
+            <div class="mode-tile" id="mode_multi" data-mode="split"><strong>Multiplayer</strong><div class="small">2 players, split-screen</div></div>
+            <div class="mode-tile" id="mode_party" data-mode="party"><strong>Party</strong><div class="small">Chaotic items from start</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="difficultyCard">
+        <div class="small"><strong>Difficulty</strong></div>
+        <div style="display:flex;gap:8px;margin-top:10px" class="choice-btn center-row">
+          <div class="choice-btn" id="diff_easy" data-diff="1">Easy</div>
+          <div class="choice-btn selected" id="diff_normal" data-diff="2">Normal</div>
+          <div class="choice-btn" id="diff_hard" data-diff="3">Hard</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="small">Player Model</div>
+        <div style="margin-top:8px" class="model-row" id="models">
+          <div class="choice-btn center-row selected" data-model="green" id="m_green">Green</div>
+          <div class="choice-btn center-row" data-model="pink" id="m_pink">Pink</div>
+          <div class="choice-btn center-row" data-model="orange" id="m_orange">Orange</div>
+          <div class="choice-btn center-row" data-model="rainbow" id="m_rainbow">Rainbow</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="small">Power-Ups & Hazards (phase)</div>
+        <div class="small" style="margin-top:8px">⚡ Bolt = Speed-Up (Phase 3)<br>🐌 Snail = Slow-Down (Phase 3)<br>👻 Ghost = Pass-through (Phase 4)<br>💣 Bomb = Explosion (−1 life) (Phase 1)<br>🧱 Barricade = Block (Phase ≥5) (−1 life)<br>❤️ Heart = Extra life (Phase ≥5)<br>🌀 Portal = Teleport pairs</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Final polished Snake Deluxe (single-file)
+const GRID = 20;
+let tilePx = 30;
+const boardWrap = document.getElementById('boardWrap');
+let canvases = [], contexts = [], canvasHUDs = [];
+let mode = 'solo';
+let difficulty = 2; // 1=Easy,2=Normal,3=Hard
+let model = 'green';
+let tickHandle = null;
+let worlds = [];
+let soundsEnabled = localStorage.getItem('sd_sounds') !== '0';
+let best = Number(localStorage.getItem('sd_best')||0); document.getElementById('uiBest').innerText = best;
+
+const FRUITS = ['🍎','🍌','🍇','🍉','🍒','🥭','🍍','🍑','🍐','🍋','🍈','🫐','🍓','🥝'];
+const POWER = {bolt:'⚡',snail:'🐌',ghost:'👻',life:'❤️',bomb:'💣',portal:'🌀'};
+
+function rand(n){return Math.floor(Math.random()*n)}
+function keyPos(x,y){return `${x},${y}` }
+
+function createCanvasesForMode(m){ canvases.forEach(c=>c.parentNode.remove()); canvases=[]; contexts=[]; canvasHUDs=[]; worlds=[]; mode=m;
+  if(m==='split'){
+    for(let i=0;i<2;i++){
+      const wrap=document.createElement('div'); wrap.className='canvas-wrap';
+      const hud=document.createElement('div'); hud.className='canvas-hud'; hud.id='canvasHUD_'+i; hud.innerHTML = `Player ${i+1}: 0 pts · ❤ 1`;
+      wrap.appendChild(hud);
+      const c=document.createElement('canvas'); c.className='board'; c.dataset.idx=i; wrap.appendChild(c);
+      boardWrap.appendChild(wrap);
+      canvases.push(c); contexts.push(c.getContext('2d')); canvasHUDs.push(hud); worlds.push(null);
+    }
+    document.getElementById('pillLives').style.display='none';
+    document.getElementById('pillScore').style.display='none';
+  } else {
+    const wrap=document.createElement('div'); wrap.className='canvas-wrap';
+    const c=document.createElement('canvas'); c.className='board'; c.dataset.idx=0; wrap.appendChild(c);
+    boardWrap.appendChild(wrap);
+    canvases.push(c); contexts.push(c.getContext('2d')); canvasHUDs.push(null); worlds.push(null);
+    document.getElementById('pillLives').style.display='flex';
+    document.getElementById('pillScore').style.display='flex';
+  }
+  adjustCanvasSize();
+}
+
+function adjustCanvasSize(){ const rect = boardWrap.getBoundingClientRect(); const count = canvases.length; const perW = count===2? (rect.width/2 - 6) : rect.width - 6; const perH = rect.height - 6; const maxByW = Math.floor(perW/GRID); const maxByH = Math.floor(perH/GRID); tilePx = Math.max(16, Math.min(56, Math.min(maxByW,maxByH))); const size = tilePx * GRID; canvases.forEach(c=>{ c.width=size; c.height=size; c.style.width=size+'px'; c.style.height=size+'px'; }); }
+window.addEventListener('resize', adjustCanvasSize);
+
+function newWorld(){ return {snakes:[],fruits:[],bombs:[],portals:[],powerups:[],barricades:[],particles:[],score:0,lives:1,phase:1,dead:false,tickMs:tickMsByDifficulty(difficulty),lastFruit:null,sameFruitCount:0}};
+function tickMsByDifficulty(d){ return {1:340,2:220,3:150}[d]; }
+
+function createSnake(id,colour,modelName,start){ const sx = start?start.x:Math.floor(GRID/2); const sy = start?start.y:Math.floor(GRID/2); const body=[]; for(let i=0;i<5;i++) body.push({x:sx-i,y:sy}); return {id,body,dir:{x:1,y:0},colour:modelName,ghost:false,visible:true,slow:false,speedBoost:false}; }
+
+function freeTiles(world){ const occ=new.Set?new Set():new Set(); world.snakes.forEach(s=>s.body.forEach(p=>occ.add(keyPos(p.x,p.y)))); world.fruits.forEach(f=>occ.add(keyPos(f.x,f.y))); world.bombs.forEach(b=>occ.add(keyPos(b.x,b.y))); world.barricades.forEach(b=>occ.add(keyPos(b.x,b.y))); world.portals.forEach(p=>occ.add(keyPos(p.x,p.y))); world.powerups.forEach(p=>occ.add(keyPos(p.x,p.y))); const free=[]; for(let x=0;x<GRID;x++) for(let y=0;y<GRID;y++) if(!occ.has(keyPos(x,y))) free.push({x,y}); return free; }
+
+function spawnFruit(world){ const free = freeTiles(world); if(!free.length) return; const p = free[rand(free.length)]; let emoji; let tries=0; do{ emoji = FRUITS[rand(FRUITS.length)]; tries++; } while(emoji===world.lastFruit && world.sameFruitCount>=2 && tries<20); if(emoji===world.lastFruit) world.sameFruitCount++; else { world.sameFruitCount=1; world.lastFruit=emoji; } world.fruits.push({x:p.x,y:p.y,emoji:emoji,points:1,expires:Date.now()+22000}); }
+function spawnBomb(world){ const free = freeTiles(world); if(!free.length) return; const p = free[rand(free.length)]; world.bombs.push({x:p.x,y:p.y,expires:Date.now()+10000}); }
+function spawnPortalPair(world){ const free = freeTiles(world); if(free.length<2) return; const a=free[rand(free.length)]; let b=free[rand(free.length)]; let tries=0; while(a.x===b.x&&a.y===b.y&&tries<30){ b=free[rand(free.length)]; tries++; } const id=Math.random().toString(36).slice(2,8); world.portals.push({x:a.x,y:a.y,id,expires:Date.now()+25000}); world.portals.push({x:b.x,y:b.y,id,expires:Date.now()+25000}); }
+function spawnPowerup(world,kind){ const free = freeTiles(world); if(!free.length) return; const p = free[rand(free.length)]; const kindName = kind || ['bolt','snail','ghost','life'][rand(4)]; world.powerups.push({x:p.x,y:p.y,kind:kindName,expires:Date.now()+16000}); }
+function spawnBarricade(world){ const free = freeTiles(world); if(!free.length) return; const p = free[rand(free.length)]; world.barricades.push({x:p.x,y:p.y,expires:Date.now()+30000}); }
+
+function addParticles(world,x,y,count=12){ for(let i=0;i<count;i++) world.particles.push({x:x+Math.random()*tilePx,y:y+Math.random()*tilePx,vx:(Math.random()-0.5)*3,vy:(Math.random()-0.5)*3,life:300+Math.random()*400}); }
+function updateParticles(world,dt){ for(let i=world.particles.length-1;i>=0;i--){ const p=world.particles[i]; p.x+=p.vx*(dt/16); p.y+=p.vy*(dt/16); p.life-=dt; if(p.life<=0) world.particles.splice(i,1); } }
+function renderParticles(world,ctx){ for(const p of world.particles){ ctx.fillStyle='rgba(255,255,255,'+Math.max(0,p.life/600)+')'; ctx.beginPath(); ctx.arc(p.x,p.y,2,0,Math.PI*2); ctx.fill(); } }
+
+const keyMap = {'arrowup':{x:0,y:-1},'arrowdown':{x:0,y:1},'arrowleft':{x:-1,y:0},'arrowright':{x:1,y:0},'w':{x:0,y:-1},'s':{x:0,y:1},'a':{x:-1,y:0},'d':{x:1,y:0}};
+let inputQueue = [];
+window.addEventListener('keydown', e=>{ const key = (e.key||'').toString().toLowerCase(); const d = keyMap[key]; if(d) inputQueue.push({key,key,dir:d}); if(key==='escape') togglePause(); });
+
+boardWrap.addEventListener('click', e=>{ for(let i=0;i<canvases.length;i++){ const c=canvases[i]; const rect=c.getBoundingClientRect(); if(e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom){ const cx=e.clientX-rect.left, cy=e.clientY-rect.top; const world=worlds[i]; if(!world||!world.snakes[0]) return; const head=world.snakes[0].body[0]; const hx=head.x*tilePx+tilePx/2, hy=head.y*tilePx+tilePx/2; const dx=cx-hx, dy=cy-hy; if(Math.abs(dx)>Math.abs(dy)) inputQueue.push({canvas:i,dir:dx>0?{x:1,y:0}:{x:-1,y:0}}); else inputQueue.push({canvas:i,dir:dy>0?{x:0,y:1}:{x:0,y:-1}}); break; } } });
+
+function worldTick(world,ctx,idx){ if(!world || world.dead) return; const now=Date.now(); world.fruits = world.fruits.filter(f=>f.expires>now); world.bombs = world.bombs.filter(b=>b.expires>now); world.portals = world.portals.filter(p=>p.expires>now); world.powerups = world.powerups.filter(p=>p.expires>now); world.barricades = world.barricades.filter(b=>b.expires>now);
+  if(inputQueue.length){ for(let qIdx=0;qIdx<inputQueue.length;qIdx++){ const q = inputQueue[qIdx]; if(q.canvas!==undefined){ if(q.canvas===idx && world.snakes[0]){ const d=q.dir; if(!(d.x===-world.snakes[0].dir.x && d.y===-world.snakes[0].dir.y)) world.snakes[0].dir = d; inputQueue.splice(qIdx,1); qIdx--; continue; } } else if(q.key){ const isWASD = ['w','a','s','d'].includes(q.key); const isArrows = ['arrowup','arrowdown','arrowleft','arrowright'].includes(q.key); if(mode==='split'){ if(isWASD && idx===0 && world.snakes[0]){ const d=q.dir; if(!(d.x===-world.snakes[0].dir.x && d.y===-world.snakes[0].dir.y)) world.snakes[0].dir = d; inputQueue.splice(qIdx,1); qIdx--; continue; } if(isArrows && idx===1 && world.snakes[0]){ const d=q.dir; if(!(d.x===-world.snakes[0].dir.x && d.y===-world.snakes[0].dir.y)) world.snakes[0].dir = d; inputQueue.splice(qIdx,1); qIdx--; continue; } } else { if(world.snakes[0]){ const d=q.dir; if(!(d.x===-world.snakes[0].dir.x && d.y===-world.snakes[0].dir.y)) world.snakes[0].dir = d; inputQueue.splice(qIdx,1); qIdx--; continue; } } } } }
+
+  for(const s of world.snakes){ const head = s.body[0]; let nx=head.x + s.dir.x, ny = head.y + s.dir.y; if(s.dir.x===0 && s.dir.y===0) continue; if(nx<0||ny<0||nx>=GRID||ny>=GRID){ handleDeath(world); return; }
+    const portal = world.portals.find(pp=>pp.x===nx&&pp.y===ny);
+    if(portal){ const other = world.portals.find(q=>q.id===portal.id && (q.x!==portal.x||q.y!==portal.y)); if(other){ nx = other.x; ny = other.y; addParticles(world, nx*tilePx, ny*tilePx); } }
+    if(world.bombs.some(b=>b.x===nx && b.y===ny)){ addParticles(world, nx*tilePx, ny*tilePx); playSound('bomb'); handleDeath(world,true); return; }
+    if(world.barricades.some(b=>b.x===nx && b.y===ny)){ playSound('hit'); handleDeath(world,false); return; }
+    if(!s.ghost && s.body.some(seg=>seg.x===nx && seg.y===ny)){ handleDeath(world); return; }
+    for(const o of world.snakes) if(o!==s){ if(o.body.some(seg=>seg.x===nx && seg.y===ny) && !s.ghost){ handleDeath(world); return; } }
+    s.body.unshift({x:nx,y:ny});
+    const fi = world.fruits.findIndex(f=>f.x===nx&&f.y===ny);
+    if(fi>=0){ world.score += world.fruits[fi].points; playSound('eat'); updateGlobalScore(); world.fruits.splice(fi,1); setTimeout(()=>{ const limit = Math.min(1 + (world.phase-1), 3); if(world.fruits.length < limit) spawnFruit(world); }, 900);
+    } else s.body.pop();
+    const pui = world.powerups.findIndex(pu=>pu.x===nx && pu.y===ny);
+    if(pui>=0){ applyPowerup(world, s, world.powerups[pui].kind); world.powerups.splice(pui,1); }
+    checkPhaseSync(world);
+  }
+  updateParticles(world,16);
+  renderWorld(world,ctx);
+}
+
+function updateGlobalScore(){ const total = worlds.reduce((a,w)=>a + (w && !w.dead? w.score:0),0); document.getElementById('uiScore').innerText = total; for(let i=0;i<worlds.length;i++){ const w=worlds[i]; const hud = canvasHUDs[i]; if(hud){ if(!w) hud.innerText = `Player ${i+1}: 0 pts · ❤ 0`; else hud.innerText = `Player ${i+1}: ${w.score} pts · ❤ ${w.lives}`; } } }
+
+function handleDeath(world, byBomb=false){ world.lives--; if(world.lives<=0){ world.dead = true; world.snakes = []; const allDead = worlds.every(w=>w.dead); if(allDead) showGameOver(); } else { resetWorld(world); } }
+
+function showGameOver(){ if(tickHandle) clearInterval(tickHandle); tickHandle=null; const totals = worlds.map((w,i)=>({i,score:w? w.score:0})); const totalSum = totals.reduce((a,b)=>a+b.score,0); let multiText = '';
+  if(worlds.length>1){ totals.forEach(t=>{ multiText += `Player ${t.i+1}: ${t.score} pts\n`; }); const winner = totals.slice().sort((a,b)=>b.score-a.score)[0]; multiText += `\nWinner: Player ${winner.i+1}`; }
+  document.getElementById('multiResults').innerText = multiText; document.getElementById('overScore').innerText = totalSum; if(totalSum > best){ best = totalSum; localStorage.setItem('sd_best',best); } document.getElementById('overBest').innerText = best; document.getElementById('uiBest').innerText = best; document.getElementById('canvasOverlay').style.display='flex'; document.getElementById('overlayTitle').innerText = 'Game Over'; playSound('gameover'); }
+
+function applyPowerup(world, snake, kind){ playSound('power'); if(kind==='bolt'){ snake.speedBoost = true; setTimeout(()=>{ snake.speedBoost = false; },6000); } else if(kind==='snail'){ for(const s of world.snakes) if(s!==snake) s.slow = true; setTimeout(()=>{ for(const s of world.snakes) if(s!==snake) s.slow=false; },6000); } else if(kind==='ghost'){ snake.ghost = true; setTimeout(()=>snake.ghost=false,8000); } else if(kind==='life'){ world.lives++; if(worlds[0]) document.getElementById('uiLives').innerText = worlds[0].lives; } }
+
+function checkPhaseSync(world){ const newP = Math.min(6, Math.floor(world.score/10) + 1); if(newP !== world.phase){ world.phase = newP; worlds.forEach(w=>{ if(w) w.phase = Math.max(w.phase, newP); }); document.getElementById('uiPhase').innerText = newP; onPhaseChange(newP); } }
+function onPhaseChange(p){ for(const w of worlds) if(w){ if(p===2) setTimeout(()=>spawnBomb(w),300); if(p===3) setTimeout(()=>spawnPowerup(w),400); if(p===4) setTimeout(()=>spawnPortalPair(w),500); if(p>=5 && difficulty>1) setTimeout(()=>spawnBarricade(w),500); } }
+
+function renderWorld(world,ctx){ if(!ctx) return; ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height); for(let gx=0;gx<GRID;gx++) for(let gy=0;gy<GRID;gy++){ const mix = ((gx+gy)%2)? '#114c2d' : '#0e5328'; ctx.fillStyle = mix; ctx.fillRect(gx*tilePx,gy*tilePx,tilePx,tilePx); }
+  ctx.globalAlpha = 1; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font = Math.floor(tilePx*0.8)+'px serif';
+  for(const f of world.fruits) ctx.fillText(f.emoji, f.x*tilePx+tilePx/2, f.y*tilePx+tilePx/2);
+  ctx.font = Math.floor(tilePx*0.75)+'px serif';
+  for(const b of world.bombs) ctx.fillText(POWER.bomb, b.x*tilePx+tilePx/2, b.y*tilePx+tilePx/2);
+  for(const pu of world.powerups) ctx.fillText(POWER[pu.kind]||'❓', pu.x*tilePx+tilePx/2, pu.y*tilePx+tilePx/2);
+  for(const p of world.portals) ctx.fillText(POWER.portal, p.x*tilePx+tilePx/2, p.y*tilePx+tilePx/2);
+  for(const br of world.barricades){ ctx.fillStyle='#7b4f2b'; ctx.fillRect(br.x*tilePx+4, br.y*tilePx+4, tilePx-8, tilePx-8); }
+  for(const s of world.snakes){ for(let i=0;i<s.body.length;i++){ const seg = s.body[i]; const x = seg.x*tilePx + 2; const y = seg.y*tilePx + 2; const w = tilePx - 4; const h = tilePx - 4; const color = simpleColourForModel(s.colour, i); roundRectFill(ctx, x, y, w, h, Math.max(6, w*0.28), color); } }
+  renderParticles(world,ctx); updateGlobalScore(); }
+
+function simpleColourForModel(m,i){ if(m==='green'){ const hue = 120 + Math.min(40,i*3); return `hsl(${hue} 46% ${52 - (i%3)*6}%)`; } if(m==='pink'){ const hue = 320 + Math.min(36,i*3); return `hsl(${hue} 72% ${64 - (i%3)*6}%)`; } if(m==='orange'){ const hue = 18 + Math.min(36,i*3); return `hsl(${hue} 78% ${64 - (i%3)*6}%)`; } if(m==='rainbow'){ return `hsl(${(i*18)%360} 78% ${60 - (i%4)*5}%)`; } return '#6fd18b'; }
+
+function roundRectFill(ctx,x,y,w,h,r,color){ ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill(); }
+
+function resetWorld(world){ world.snakes=[]; world.fruits=[]; world.bombs=[]; world.portals=[]; world.powerups=[]; world.barricades=[]; world.particles=[]; world.score=0; world.lives=1; world.phase=1; world.dead=false; world.tickMs = tickMsByDifficulty(difficulty); world.lastFruit=null; world.sameFruitCount=0; if(mode==='split'){ const idx = worlds.indexOf(world); const startX = idx===0? Math.floor(GRID/4): Math.floor(GRID*3/4); const start = {x:startX,y:Math.floor(GRID/2)}; const col = idx===0? model : 'pink'; world.snakes.push(createSnake('p'+(idx+1),col, idx===0? model:'pink', start)); } else { world.snakes.push(createSnake('p1', model, model)); } spawnFruit(world); if(mode==='party'){ // full chaos: spawn variety immediately
+    spawnBomb(world); spawnPowerup(world); spawnPortalPair(world); if(difficulty>1) spawnBarricade(world); }
+}
+
+function startGame(){ createCanvasesForMode(mode); for(let i=0;i<canvases.length;i++){ worlds[i] = newWorld(); resetWorld(worlds[i]); }
+  if(tickHandle) clearInterval(tickHandle);
+  tickHandle = setInterval(()=>{ for(let i=0;i<canvases.length;i++){ worldTick(worlds[i], contexts[i], i); } }, tickMsByDifficulty(difficulty)); }
+
+document.getElementById('btnStart').addEventListener('click', ()=>{ document.getElementById('canvasOverlay').style.display='none'; startGame(); });
+document.getElementById('btnPause').addEventListener('click', togglePause);
+function togglePause(){ if(tickHandle){ clearInterval(tickHandle); tickHandle=null; document.getElementById('btnPause').innerText='Resume'; } else { tickHandle = setInterval(()=>{ for(let i=0;i<canvases.length;i++) worldTick(worlds[i], contexts[i], i); }, tickMsByDifficulty(difficulty)); document.getElementById('btnPause').innerText='Pause'; } }
+
+// UI handlers
+function selectModeTile(t){ document.querySelectorAll('.mode-tile').forEach(x=>x.classList.remove('selected')); t.classList.add('selected'); mode = t.dataset.mode; createCanvasesForMode(mode); }
+document.getElementById('mode_solo').addEventListener('click', ()=>selectModeTile(document.getElementById('mode_solo')));
+document.getElementById('mode_multi').addEventListener('click', ()=>selectModeTile(document.getElementById('mode_multi')));
+document.getElementById('mode_party').addEventListener('click', ()=>selectModeTile(document.getElementById('mode_party')));
+
+// Difficulty
+function selectDifficulty(d){ document.querySelectorAll('#difficultyCard .choice-btn').forEach(x=>x.classList.remove('selected')); document.querySelector(`#difficultyCard .choice-btn[data-diff="${d}"]`).classList.add('selected'); difficulty = d; if(tickHandle){ clearInterval(tickHandle); tickHandle = setInterval(()=>{ for(let i=0;i<canvases.length;i++) worldTick(worlds[i], contexts[i], i); }, tickMsByDifficulty(difficulty)); } }
+document.getElementById('diff_easy').addEventListener('click', ()=>selectDifficulty(1)); document.getElementById('diff_normal').addEventListener('click', ()=>selectDifficulty(2)); document.getElementById('diff_hard').addEventListener('click', ()=>selectDifficulty(3));
+
+// Player model selection
+document.querySelectorAll('[data-model]').forEach(b=>b.addEventListener('click', ()=>{ document.querySelectorAll('[data-model]').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); model = b.dataset.model; }));
+
+// simple audio registry (replace asset paths with your files)
+const AUDIO = { eat: new Audio('assets/sounds/eat.mp3'), bomb: new Audio('assets/sounds/explosion.mp3'), power: new Audio('assets/sounds/power.mp3'), gameover: new Audio('assets/sounds/gameover.mp3'), hit: new Audio('assets/sounds/hit.mp3') };
+function playSound(k){ if(!soundsEnabled) return; const a=AUDIO[k]; if(a){ try{ a.currentTime=0; a.play(); }catch(e){} } }
+const sndToggle = document.getElementById('sndToggle'); sndToggle.addEventListener('click', ()=>{ soundsEnabled = !soundsEnabled; localStorage.setItem('sd_sounds', soundsEnabled? '1':'0'); sndToggle.style.opacity = soundsEnabled? '1':'0.45'; sndToggle.textContent = soundsEnabled? '🔊' : '🔈'; }); sndToggle.style.opacity = soundsEnabled? '1':'0.45'; sndToggle.textContent = soundsEnabled? '🔊':'🔈';
+
+// double-click best reset
+document.getElementById('uiBest').parentNode.addEventListener('dblclick', ()=>{ best = 0; localStorage.setItem('sd_best',0); document.getElementById('uiBest').innerText = 0; });
+
+// retry/close overlay
+document.getElementById('retry').addEventListener('click', ()=>{ document.getElementById('canvasOverlay').style.display='none'; for(const w of worlds) resetWorld(w); if(tickHandle) clearInterval(tickHandle); tickHandle = setInterval(()=>{ for(let i=0;i<canvases.length;i++) worldTick(worlds[i], contexts[i], i); }, tickMsByDifficulty(difficulty)); });
+document.getElementById('closeOverlay').addEventListener('click', ()=>{ document.getElementById('canvasOverlay').style.display='none'; });
+
+// spawner
+setInterval(()=>{ if(!tickHandle) return; for(const w of worlds){ if(!w||w.dead) continue; const limit = Math.min(1 + (w.phase-1), 3); if(Math.random() < 0.36 && w.fruits.length < limit) spawnFruit(w); if(w.phase>=2 && Math.random()<0.09 && w.bombs.length < 2) spawnBomb(w); if(w.phase>=3 && Math.random()<0.06) spawnPowerup(w); if(w.phase>=4 && Math.random()<0.04) spawnPortalPair(w); if(w.phase>=5 && difficulty>1 && Math.random()<0.06) spawnBarricade(w); if(w.phase>=5 && Math.random()<0.02) spawnPowerup(w,'life'); if(mode==='party'){ // more activity in party
+      if(Math.random()<0.2) spawnFruit(w); if(Math.random()<0.12) spawnBomb(w); if(Math.random()<0.08) spawnPowerup(w); if(Math.random()<0.05) spawnPortalPair(w); if(difficulty>1 && Math.random()<0.06) spawnBarricade(w);
+    }
+  } }, 1200);
+
+let last = Date.now(); (function loop(){ const now = Date.now(); const dt = now-last; last=now; for(const w of worlds) if(w) updateParticles(w, dt); if(!tickHandle){ for(let i=0;i<canvases.length;i++){ if(worlds[i] && contexts[i]) renderWorld(worlds[i], contexts[i]); } } requestAnimationFrame(loop); })();
+
+(function init(){ document.getElementById('mode_solo').classList.add('selected'); document.getElementById('diff_normal').classList.add('selected'); document.getElementById('m_green').classList.add('selected'); createCanvasesForMode('solo'); worlds[0] = newWorld(); resetWorld(worlds[0]); renderWorld(worlds[0], contexts[0]); document.getElementById('uiLives').innerText = worlds[0].lives; document.getElementById('uiScore').innerText = worlds[0].score; })();
+
+</script>
+</body>
+</html>
